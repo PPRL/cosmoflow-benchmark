@@ -45,7 +45,7 @@ import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.compat.v1.logging.set_verbosity(logging.ERROR)
 import horovod.tensorflow.keras as hvd
-import wandb
+# import wandb
 
 # MLPerf logging
 try:

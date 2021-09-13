@@ -29,6 +29,10 @@
 Main training script for the CosmoFlow Keras benchmark
 """
 
+# trying to rip profiling ideas from https://docs.nersc.gov/development/languages/python/profiling-debugging-python/
+import cProfile
+from pathlib import Path
+
 # System imports
 import os
 import argparse
@@ -126,6 +130,7 @@ def parse_args():
     add_arg('--print-fom', action='store_true',
             help='Print parsable figure of merit')
     add_arg('-v', '--verbose', action='store_true')
+    add_arg('--cprof-dir', type=str, default=None, help='dir for cProfile output, no profiling if empty')
     return parser.parse_args()
 
 def init_workers(distributed=False):
@@ -212,11 +217,11 @@ def print_training_summary(output_dir, print_fom):
     logging.info('Total epoch time: %.3f', history.time.sum())
     logging.info('Mean epoch time: %.3f', history.time.mean())
 
-def main():
+def main(args):
     """Main function"""
 
     # Initialization
-    args = parse_args()
+    # args = parse_args()
     dist = init_workers(args.distributed)
     config = load_config(args)
     os.makedirs(config['output_dir'], exist_ok=True)
@@ -383,6 +388,31 @@ def main():
     # Finalize
     if dist.rank == 0:
         logging.info('All done!')
+    
+    return dist.rank
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    pr = cProfile.Profile()
+
+    if args.cprof_dir:
+        cprof_path = Path(args.cprof_dir)
+        print(cprof_path)
+        if not os.path.isdir(cprof_path):
+            print(f"--cprof-dir {args.cprof_dir} found, but isn't dir")
+            exit()
+            
+
+        pr.enable()
+
+    rank = main(args)
+    # dist = init_workers(args.distributed)
+    # rank = dist.rank
+
+    if args.cprof_dir:
+        pr.disable()
+
+        cprof_path = os.path.join(cprof_path, f"cprof_cpu{rank}.prof")
+        pr.dump_stats(cprof_path)
+
+

@@ -103,6 +103,7 @@ def parse_args():
 
     # Runtime / device settings
     add_arg('-d', '--distributed', action='store_true')
+    add_arg('--gpu', type=int, help='Specify a specific GPU number to use')
     add_arg('--rank-gpu', action='store_true',
             help='Use GPU based on local rank')
     add_arg('--resume', action='store_true',
@@ -232,6 +233,10 @@ def main():
     if dist.rank == 0 and args.mlperf:
         mllogger.event(key=mllog.constants.CACHE_CLEAR)
         mllogger.start(key=mllog.constants.INIT_START)
+        # Scale logging for mlperf hpc metrics
+        mllogger.event(key='number_of_ranks', value=dist.size)
+        mllogger.event(key='number_of_nodes', value=(dist.size//dist.local_size))
+        mllogger.event(key='accelerators_per_node', value=dist.local_size)
 
     # Initialize Weights & Biases logging
     if args.wandb and dist.rank == 0:
@@ -240,7 +245,7 @@ def main():
                    config=config, resume=args.run_tag)
 
     # Device and session configuration
-    gpu = dist.local_rank if args.rank_gpu else None
+    gpu = dist.local_rank if args.rank_gpu else args.gpu
     if gpu is not None:
         logging.info('Taking gpu %i', gpu)
     configure_session(gpu=gpu,
